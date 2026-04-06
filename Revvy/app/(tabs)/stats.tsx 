@@ -1,0 +1,104 @@
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { StatCard } from '@/components/StatCard';
+import { useLogs } from '@/hooks/useLogs';
+
+const LOG_TYPES = [
+  { key: 'fuel',    label: 'Fuel',       emoji: '⛽', color: '#F97316' },
+  { key: 'oil',     label: 'Oil Change', emoji: '🛢️', color: '#3B82F6' },
+  { key: 'service', label: 'Service',    emoji: '🔧', color: '#8B5CF6' },
+  { key: 'repair',  label: 'Repair',     emoji: '🔨', color: '#EF4444' },
+  { key: 'other',   label: 'Other',      emoji: '📋', color: '#6B7280' },
+];
+
+export default function StatsScreen() {
+  const { logs, isPro } = useLogs();
+
+  const totalSpend = logs.reduce((s, l) => s + parseFloat(l.cost || '0'), 0);
+  const lastMileage = logs.length ? Math.max(...logs.map(l => parseFloat(l.mileage || '0'))) : 0;
+
+  const spendByType = LOG_TYPES.map(t => ({
+    ...t,
+    total: logs.filter(l => l.type === t.key).reduce((s, l) => s + parseFloat(l.cost || '0'), 0),
+    count: logs.filter(l => l.type === t.key).length,
+  }));
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Stats</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <StatCard label="Total spent" value={`$${totalSpend.toFixed(0)}`} />
+          <StatCard label="Entries" value={String(logs.length)} />
+          <StatCard label="Mileage" value={lastMileage > 0 ? lastMileage.toLocaleString() : '—'} />
+        </View>
+
+        <Text style={styles.sectionTitle}>Spend by category</Text>
+        <View style={styles.card}>
+          {spendByType.map(t => {
+            const pct = totalSpend > 0 ? (t.total / totalSpend) * 100 : 0;
+            return (
+              <View key={t.key} style={styles.barRow}>
+                <Text style={styles.barLabel}>{t.emoji} {t.label}</Text>
+                <View style={styles.barTrack}>
+                  <View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: t.color }]} />
+                </View>
+                <Text style={styles.barValue}>${t.total.toFixed(0)}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <Text style={styles.sectionTitle}>Entry breakdown</Text>
+        <View style={styles.card}>
+          {spendByType.map(t => (
+            <View key={t.key} style={styles.breakRow}>
+              <View style={[styles.dot, { backgroundColor: t.color }]} />
+              <Text style={styles.breakLabel}>{t.label}</Text>
+              <Text style={styles.breakCount}>{t.count} entries</Text>
+              <Text style={styles.breakCost}>${t.total.toFixed(2)}</Text>
+            </View>
+          ))}
+        </View>
+
+        {!isPro && (
+          <TouchableOpacity style={styles.lockBanner}>
+            <Text style={styles.lockText}>🔒  Upgrade to Pro to unlock PDF export & full reports</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#F2F2F7' },
+  header: {
+    backgroundColor: '#fff', padding: 16, paddingTop: 20,
+    borderBottomWidth: 0.5, borderBottomColor: '#E5E5EA',
+  },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
+  statsRow: { flexDirection: 'row', padding: 16, gap: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#0F172A', paddingHorizontal: 16, marginBottom: 8 },
+  card: { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16 },
+  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
+  barLabel: { width: 90, fontSize: 12, color: '#0F172A' },
+  barTrack: { flex: 1, height: 6, backgroundColor: '#F2F2F7', borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: 6, borderRadius: 3 },
+  barValue: { width: 40, fontSize: 12, fontWeight: '600', color: '#0F172A', textAlign: 'right' },
+  breakRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
+    borderBottomWidth: 0.5, borderBottomColor: '#F2F2F7', gap: 8,
+  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  breakLabel: { flex: 1, fontSize: 13, color: '#0F172A' },
+  breakCount: { fontSize: 12, color: '#8E8E93' },
+  breakCost: { fontSize: 13, fontWeight: '600', color: '#0F172A', marginLeft: 8 },
+  lockBanner: {
+    backgroundColor: '#FFF7ED', marginHorizontal: 16, padding: 14,
+    borderRadius: 12, borderWidth: 1, borderColor: '#FED7AA',
+  },
+  lockText: { fontSize: 13, color: '#9A3412', textAlign: 'center' },
+});

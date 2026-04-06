@@ -1,0 +1,107 @@
+import { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { LogCard } from '@/components/LogCard';
+import { LogFormModal } from '@/components/LogFormModal';
+import { useLogs } from '@/hooks/useLogs';
+
+const LOG_TYPES = [
+  { key: 'fuel',    label: 'Fuel',       emoji: '⛽', color: '#F97316' },
+  { key: 'oil',     label: 'Oil Change', emoji: '🛢️', color: '#3B82F6' },
+  { key: 'service', label: 'Service',    emoji: '🔧', color: '#8B5CF6' },
+  { key: 'repair',  label: 'Repair',     emoji: '🔨', color: '#EF4444' },
+  { key: 'other',   label: 'Other',      emoji: '📋', color: '#6B7280' },
+];
+
+const FREE_LIMIT = 10;
+
+export default function HistoryScreen() {
+  const { logs, editLog, deleteLog, isPro } = useLogs();
+  const [filter, setFilter] = useState('all');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editEntry, setEditEntry] = useState<any>(null);
+
+  const sorted = [...logs].sort((a, b) => b.date.localeCompare(a.date));
+  const visible = isPro ? sorted : sorted.slice(0, FREE_LIMIT);
+  const filtered = filter === 'all' ? visible : visible.filter(l => l.type === filter);
+
+  const openEdit = (entry: any) => { setEditEntry(entry); setModalVisible(true); };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>History</Text>
+        {!isPro && logs.length > FREE_LIMIT && (
+          <Text style={styles.headerSub}>Showing {FREE_LIMIT} of {logs.length}</Text>
+        )}
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
+          onPress={() => setFilter('all')}
+        >
+          <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>All</Text>
+        </TouchableOpacity>
+        {LOG_TYPES.map(t => (
+          <TouchableOpacity
+            key={t.key}
+            style={[styles.filterPill, filter === t.key && { backgroundColor: t.color, borderColor: t.color }]}
+            onPress={() => setFilter(t.key)}
+          >
+            <Text style={[styles.filterText, filter === t.key && styles.filterTextActive]}>
+              {t.emoji} {t.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+        {filtered.length === 0 && <Text style={styles.empty}>No entries for this filter.</Text>}
+        {filtered.map(log => (
+          <LogCard key={log.id} entry={log} onEdit={openEdit} onDelete={deleteLog} />
+        ))}
+        {!isPro && logs.length > FREE_LIMIT && (
+          <View style={styles.lockBanner}>
+            <Text style={styles.lockText}>
+              🔒  {logs.length - FREE_LIMIT} older entries locked · Upgrade to Pro to view all
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      <LogFormModal
+        visible={modalVisible}
+        entry={editEntry}
+        isPro={isPro}
+        logCount={logs.length}
+        freeLimit={FREE_LIMIT}
+        onSave={(data: any) => { editLog({ ...data, id: editEntry.id }); setModalVisible(false); }}
+        onClose={() => setModalVisible(false)}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#F2F2F7' },
+  header: {
+    backgroundColor: '#fff', padding: 16, paddingTop: 20,
+    borderBottomWidth: 0.5, borderBottomColor: '#E5E5EA',
+  },
+  headerTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
+  headerSub: { fontSize: 13, color: '#8E8E93', marginTop: 2 },
+  filterRow: { paddingHorizontal: 16, paddingVertical: 10, maxHeight: 52, backgroundColor: '#fff' },
+  filterPill: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    borderWidth: 1, borderColor: '#E5E5EA', marginRight: 8, backgroundColor: '#fff',
+  },
+  filterPillActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
+  filterText: { fontSize: 12, color: '#0F172A' },
+  filterTextActive: { color: '#fff', fontWeight: '600' },
+  empty: { textAlign: 'center', color: '#8E8E93', padding: 32, fontSize: 14 },
+  lockBanner: {
+    backgroundColor: '#FFF7ED', padding: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: '#FED7AA', marginTop: 8,
+  },
+  lockText: { fontSize: 13, color: '#9A3412', textAlign: 'center' },
+});
